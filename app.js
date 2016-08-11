@@ -8,7 +8,11 @@ const motions = {
     'right': 'r',
     'down': 'b',
     'left': 'l',
-    'space': 's'
+    'space': 's',
+    'x': 'x',
+    'y': 'y',
+    'z': 'z'
+
 };
 
 keypress(process.stdin);
