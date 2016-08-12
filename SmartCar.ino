@@ -1,38 +1,40 @@
 #include <Servo.h>
 Servo eyeMount;
 
-/* define logic control pins*/
+/* define logic control pins */
+/* NOTE: The motor control board L298N was used in this project */
 int LeftRev = 9;         // IN1
 int LeftFor = 7;         // IN2
 int RightFor = 8;        // IN3
 int RightRev = 10;       // IN4
-int Echo = A4;           // Ultrasonic input pin
-int Trig = A5;           // Ultrasonic output pin
+int Echo = A4;           // Ultrasonic sensor input pin
+int Trig = A5;           // Ultrasonic sensor output pin
 int rightLineSensor = 2; // Rightmost Line-Tracing sensor pin
 int midLineSensor = 4;   // Middle Line-Tracing sensor pin
 int leftLineSensor = 11; // Leftmost Line-Tracing sensor pin
 
-/* define channel enable pins and variable speed */
+/* define channel enable pins, variable speed, and motion boolean */
 int ENA = 5;          // enable Left side
 int ENB = 6;          // enable Right side
-int motorSpeed = 110; // You can change this to change the motor speed
-
-/* define bluetooth input, stopped boolean, and mode state variables */
-char getstr;             // input from serial monitor, it is a single character
+int motorSpeed = 115; // You can change this to change the motor speed
+int turnSpeed = 170;
 boolean stopped = true;  // if the robot is stopped or not
+
+/* define bluetooth input and mode state variables */
+char getstr;             // input from serial monitor, it is a single character
 int state = 0;           // State determines what mode you're in
 
-/* define distance variables for Ultrasonic Sensor*/
+/* define distance variables for Ultrasonic Sensor */
 int RightDistance = 0, LeftDistance = 0, detectedDistance = 0;
 
-/* define forward function*/
+/* define forward function */
 void forward()
 { 
   stopped = false;
-  //analogWrite(ENA,motorSpeed); // Enable Left side variable speed
-  //analogWrite(ENB,motorSpeed); // Enable Right side variable speed
-  digitalWrite(ENA,HIGH);        // Enable Left side full speed
-  digitalWrite(ENB,HIGH);        // Enable Right side full speed
+  analogWrite(ENA,motorSpeed); // Enable Left side variable speed
+  analogWrite(ENB,motorSpeed); // Enable Right side variable speed
+  //digitalWrite(ENA,HIGH);        // Enable Left side full speed
+  //digitalWrite(ENB,HIGH);        // Enable Right side full speed
   digitalWrite(LeftRev,LOW);     // HIGH = Left side reverse
   digitalWrite(LeftFor,HIGH);    // HIGH = Left side forward
   digitalWrite(RightFor,HIGH);   // HIGH = Right side forward
@@ -40,12 +42,14 @@ void forward()
   Serial.println("Forward");
 }
 
-/* define back function*/
+/* define back function */
 void back()
 {
   stopped = false;
-  digitalWrite(ENA,HIGH);
-  digitalWrite(ENB,HIGH);
+  analogWrite(ENA,motorSpeed);
+  analogWrite(ENB,motorSpeed);
+  //digitalWrite(ENA,HIGH);
+  //digitalWrite(ENB,HIGH);
   digitalWrite(LeftRev,HIGH);
   digitalWrite(LeftFor,LOW);
   digitalWrite(RightFor,LOW);
@@ -53,33 +57,37 @@ void back()
   Serial.println("Back");
 }
 
-/* define turn left function*/
+/* define turn left function */
 void turnLeft()
 {
   stopped = false;
-  digitalWrite(ENA,HIGH);
-  digitalWrite(ENB,LOW);
+  analogWrite(ENA,turnSpeed);
+  analogWrite(ENB,turnSpeed);
+  //digitalWrite(ENA,HIGH);
+  //digitalWrite(ENB,HIGH);
   digitalWrite(LeftRev,HIGH);
   digitalWrite(LeftFor,LOW);
-  digitalWrite(RightFor,LOW);
+  digitalWrite(RightFor,HIGH);
   digitalWrite(RightRev,LOW);
   Serial.println("Turn left");
 }
 
-/* define turn right function*/
+/* define turn right function */
 void turnRight()
 {
   stopped = false;
-  digitalWrite(ENA,LOW);
-  digitalWrite(ENB,HIGH);
+  analogWrite(ENA,turnSpeed);
+  analogWrite(ENB,turnSpeed);
+  //digitalWrite(ENA,HIGH);
+  //digitalWrite(ENB,HIGH);
   digitalWrite(LeftRev,LOW);
-  digitalWrite(LeftFor,LOW);
+  digitalWrite(LeftFor,HIGH);
   digitalWrite(RightFor,LOW);
   digitalWrite(RightRev,HIGH);
   Serial.println("Turn right");
 }
 
-/* define stop function*/
+/* define stop function */
 void stopMovement() 
 {
   stopped = true;
@@ -89,7 +97,7 @@ void stopMovement()
   Serial.println("Stop");
 }
 
-/* define function for finding distance*/
+/* define function for finding and calculating distance */
 int distanceTest()
 {
   digitalWrite(Trig,LOW);
@@ -104,7 +112,8 @@ int distanceTest()
 
 /* define Bluetooth Control from device
  * THIS FUNCTION CAN BE CALLED IN LOOP()
- * btControl() has the function stateControl() built in already
+ * NOTE: btControl() has the functions stateControl() and speedControl() already 
+ * built in 
  */
 void btControl() 
 {
@@ -134,9 +143,26 @@ void btControl()
     case 'z':
       state = 0;
       break;
+    case '+': 
+      if(motorSpeed < 245 && turnSpeed < 245) {
+        motorSpeed+=10;
+        turnSpeed++; 
+        break; 
+      }
+      break;
+    case '-':         
+      if(motorSpeed > 75 && turnSpeed > 75) {
+        motorSpeed-=10;
+        turnSpeed--; 
+        break;  
+      }
+      break;
   }
 }
 
+/* define function to switch between car modes. Mode X is auto, Mode Y is line tracing
+ * Mode Z is Bluetooth control.
+ */
 void stateControl() {
   getstr = Serial.read();
   switch(getstr) {        // This allows you to change modes any time.
@@ -148,6 +174,28 @@ void stateControl() {
           break;
         case 'z':         // z is bt control with obstacle awareness
           state = 0;
+          break;
+  }
+}
+
+/* define function to increase or decrease motor and turning speed
+ */
+void speedControl() {
+  getstr = Serial.read();
+  switch(getstr) {        // This allows you to change speed any time.
+        case '+': 
+        if(motorSpeed < 245 && turnSpeed < 245) {
+          motorSpeed+=10;
+          turnSpeed++; 
+          break;  
+        }
+          break;
+        case '-':         
+          if(motorSpeed > 75 && turnSpeed > 75) {
+          motorSpeed-=10;
+          turnSpeed--; 
+          break;  
+        }
           break;
   }
 }
@@ -187,18 +235,20 @@ void detectObstaclesAUTO()
     else {
       forward();       // If object was detected by mistake, then continue forward.
       stateControl();
+      speedControl();
     }
   }
   else {
-    forward();       // If no object is detected, then continue forward.
+    forward();         // If no object is detected, then continue forward.
     stateControl();
+    speedControl();
   }
 }
 
 /* define obstacle recognition and logic function for bluetooth control */
 void detectObstaclesBT()
 {
-  if(detectedDistance <= 15) { // if distance detected is <= 15 cm
+  if(detectedDistance <= 15) {      // if distance detected is <= 15 cm
     stopMovement();
     
     delay(250);
@@ -217,10 +267,12 @@ void detectObstaclesBT()
     if(RightDistance > LeftDistance) {
       turnRight();
       delay(500);
+      stopMovement();
     }
     else if(RightDistance < LeftDistance) {
       turnLeft();
       delay(500);
+      stopMovement();
     }
     else if((RightDistance <= 30) || (LeftDistance <= 30)) {
       back();
@@ -330,11 +382,13 @@ void followLine()
     back();
     delay(2);
     stateControl();
+    speedControl();
   }
   else {
     forward();
     delay(2);
     stateControl();
+    speedControl();
   }
 }
 
