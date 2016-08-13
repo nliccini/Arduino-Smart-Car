@@ -404,7 +404,6 @@ void setup() {
   pinMode(ENB,OUTPUT);
   pinMode(Echo,INPUT);
   pinMode(Trig,OUTPUT);
-  //pinMode(rightLineSensor,INPUT); // not sure if necessary to declare pinMode
   eyeMount.attach(3);
   eyeMount.write(75);
 }
