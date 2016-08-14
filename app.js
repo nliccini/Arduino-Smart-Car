@@ -11,7 +11,9 @@ const motions = {
     'space': 's',
     'x': 'x',
     'y': 'y',
-    'z': 'z'
+    'z': 'z',
+    'w': '+',
+    'q': '-'
 
 };
 
