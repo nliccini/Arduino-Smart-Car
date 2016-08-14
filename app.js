@@ -14,7 +14,6 @@ const motions = {
     'z': 'z',
     'w': '+',
     'q': '-'
-
 };
 
 keypress(process.stdin);
