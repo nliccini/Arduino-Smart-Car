@@ -9,11 +9,12 @@ const motions = {
     'down': 'b',
     'left': 'l',
     'space': 's',
+    'w': 'w',
     'x': 'x',
     'y': 'y',
     'z': 'z',
-    'w': '+',
-    'q': '-'
+    'p': '+',
+    'o': '-'
 };
 
 keypress(process.stdin);
