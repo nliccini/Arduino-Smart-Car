@@ -1,3 +1,5 @@
+// Attempted WiFi code here...
+/*
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WiFiServer.h>
@@ -5,12 +7,18 @@
 
 #include <ESP8266wifi.h>
 
-char ssid[] = "AquaEagle";     //  your network SSID (name) 
-char pass[] = "t8b8n7oV73";  // your network password
-int status = WL_IDLE_STATUS;     // the Wifi radio's status
+char ssid[] = "ssid";     //  your network SSID (name) 
+char pass[] = "pass";  // your network password
+*/ 
+// End of WiFi code snippet...
 
+/* This is the Arduino Smart Car!
+ * 
+ */
+
+/* include outside libraries */
 #include <Servo.h>
-Servo eyeMount;
+#include <IRremote.h>
 
 /* define logic control pins */
 /* NOTE: The motor control board L298N was used in this project */
@@ -23,6 +31,7 @@ int Trig = A5;           // Ultrasonic sensor output pin
 int rightLineSensor = 2; // Rightmost Line-Tracing sensor pin
 int midLineSensor = 4;   // Middle Line-Tracing sensor pin
 int leftLineSensor = 11; // Leftmost Line-Tracing sensor pin
+int receiverPin = 12;    // IR receiver pin
 
 /* define channel enable pins, variable speed, and motion boolean */
 int ENA = 5;          // enable Left side
@@ -31,12 +40,29 @@ int motorSpeed = 115; // You can change this to change the motor speed
 int turnSpeed = 170;
 boolean stopped = true;  // if the robot is stopped or not
 
-/* define bluetooth input and mode state variables */
+/* define bluetooth input, mode state variables, and ir results */
 char getstr;             // input from serial monitor, it is a single character
-int state = 0;           // State determines what mode you're in
+int state = 3;           // State determines what mode you're in
+unsigned long RED;       // RED stores the value of the IR remote's commands
 
 /* define distance variables for Ultrasonic Sensor */
 int RightDistance = 0, LeftDistance = 0, detectedDistance = 0;
+
+/* define IR remote command constants */
+#define up 16736925
+#define right 16761405
+#define down 16754775
+#define left 16720605
+#define OK 16712445
+#define modeW 16738455
+#define modeX 16750695
+#define modeY 16756815
+#define modeZ 16724175
+
+/* define objects from libraries */
+Servo eyeMount;
+IRrecv irrecv(receiverPin);
+decode_results results;
 
 /* define forward function */
 void forward()
@@ -104,7 +130,6 @@ void stopMovement()
   stopped = true;
   digitalWrite(ENA,LOW);
   digitalWrite(ENB,LOW);
-  digitalWrite(13, HIGH);
   Serial.println("Stop");
 }
 
@@ -121,9 +146,86 @@ int distanceTest()
   return (int)distance;
 }
 
+/* define Infrared Remote Control
+ * THIS FUNCTION CAN BE CALLED IN LOOP()
+ * NOTE: irControl() has the functions irStateControl() already 
+ * built in 
+ */
+void irControl() 
+{
+  stopMovement();
+  eyeMount.write(75);
+  if(irrecv.decode(&results)) {
+    RED = results.value;
+    //Serial.println(RED);
+    irrecv.resume();
+    delay(150);
+    if(RED == up) {
+      forward();
+      delay(500);
+    }
+    else if(RED == right) {
+      turnRight();
+      delay(350);
+    }
+    else if(RED == down) {
+      back();
+      delay(500);
+    }
+    else if(RED == left) {
+      turnLeft();
+      delay(350);
+    }
+    else if(RED == OK) {
+      stopMovement();
+    } 
+    else if(RED == modeW) {
+      state = 3;
+    }
+    else if(RED == modeX) {
+      state = 2;
+    }
+    else if(RED == modeY) {
+      state = 1;
+    }
+    else if(RED == modeZ) {
+      state = 0;
+    }
+    else {
+      //
+    }
+  }
+}
+
+/* define function to switch between car modes. Mode W is IR remote, Mode X is auto, 
+ * Mode Y is line tracing, Mode Z is Bluetooth control.
+ */
+void irStateControl() 
+{
+  if(irrecv.decode(&results)) {
+    RED = results.value;
+    //Serial.println(RED);
+    irrecv.resume();
+    delay(150);
+    if(RED == modeW) {      // Press 1 on remote
+      state = 3;
+      stopMovement();
+    }
+    else if(RED == modeX) { // Press 2 on remote
+      state = 2;
+    }
+    else if(RED == modeY) { // Press 3 on remote
+      state = 1;
+    }
+    else if(RED == modeZ) { // Press 4 on remote
+      state = 0;
+    }
+  }
+}
+
 /* define Bluetooth Control from device
  * THIS FUNCTION CAN BE CALLED IN LOOP()
- * NOTE: btControl() has the functions stateControl() and speedControl() already 
+ * NOTE: btControl() has the functions btStateControl() and btSpeedControl() already 
  * built in 
  */
 void btControl() 
@@ -145,7 +247,11 @@ void btControl()
    case 's':
       stopMovement();
       break;
-    case 'x':         // x, y, z are the different modes
+   case 'w':            // w, x, y, z are the different modes
+      state = 3;
+      stopMovement();
+      break;
+    case 'x':         
       state = 2;
       break;
     case 'y':
@@ -171,12 +277,16 @@ void btControl()
   }
 }
 
-/* define function to switch between car modes. Mode X is auto, Mode Y is line tracing
- * Mode Z is Bluetooth control.
+/* define function to switch between car modes. Mode W is IR remote, Mode X is auto, 
+ * Mode Y is line tracing, Mode Z is Bluetooth control.
  */
-void stateControl() {
+void btStateControl() {
   getstr = Serial.read();
   switch(getstr) {        // This allows you to change modes any time.
+        case 'w':
+          state = 3;
+          stopMovement();
+          break;
         case 'x':         // x is automatic driving with obstacle awareness
           state = 2;
           break;
@@ -191,7 +301,7 @@ void stateControl() {
 
 /* define function to increase or decrease motor and turning speed
  */
-void speedControl() {
+void btSpeedControl() {
   getstr = Serial.read();
   switch(getstr) {        // This allows you to change speed any time.
         case '+': 
@@ -245,14 +355,16 @@ void detectObstaclesAUTO()
     }
     else {
       forward();       // If object was detected by mistake, then continue forward.
-      stateControl();
-      speedControl();
+      btStateControl();
+      btSpeedControl();
+      irStateControl();
     }
   }
   else {
     forward();         // If no object is detected, then continue forward.
-    stateControl();
-    speedControl();
+    btStateControl();
+    btSpeedControl();
+    irStateControl();
   }
 }
 
@@ -291,10 +403,12 @@ void detectObstaclesBT()
     }
     else {
       btControl();  // If object was detected by mistake, then continue with BT control
+      irStateControl();
     }
   }
   else {
     btControl();    // If no object is detected, then continue with BT control
+    irStateControl();
   }
 }
 
@@ -348,6 +462,7 @@ void avoidObstaclesBT()
   } 
   else {
     btControl();
+    irStateControl();
   }
 }
 
@@ -389,23 +504,61 @@ void followLine()
       }
     }
   } 
-  else if(rightLine ==0 && leftLine == 0 && midLine ==0) {
+  else if(rightLine == 0 && leftLine == 0 && midLine == 0) {
     back();
     delay(2);
-    stateControl();
-    speedControl();
+    btStateControl();
+    btSpeedControl();
+    irStateControl();
   }
   else {
     forward();
     delay(2);
-    stateControl();
-    speedControl();
+    btStateControl();
+    btSpeedControl();
+    irStateControl();
   }
 }
 
+
+// Attempted WiFi Code here... Better thought would be to use ESP8266 
+// Shield from Sparkfun
+/* char* getRandomJSON(ESP8266wifi* wifi) {
+  bool connectedToAP = wifi->isConnectedToAP();
+
+  if (connectedToAP) {
+    Serial.println("Connected to AP");
+  }
+
+  bool connectedToServer = wifi->connectToServer("192.168.1.112", "8080");
+  
+  if (connectedToServer) {
+    Serial.println("Connected to Server");
+  } else { 
+    Serial.println("Cannot connect!!");
+    return "";
+  }
+
+  /* char** data = {
+    "GET ",
+    "/ ",
+    "HTTP/1.1\r\n"
+  }; */
+  
+/*  wifi->send(SERVER, "GET / HTTP/1.1\r\n", false);
+  boolean sendOK = wifi->send(SERVER, "Host: 192.168.1.112\r\n\r\n");
+  if (sendOK) {
+    Serial.println("Send the Message OK");
+  }
+
+  return "";
+}
+*/
+// End of WiFi snippit...
+
 /* put your setup code here, to run once */
 void setup() {
- Serial.begin(115200);
+ Serial.begin(9600);
 /* Set the defined pins to the output */
   pinMode(LeftRev,OUTPUT);
   pinMode(LeftFor,OUTPUT);
@@ -415,21 +568,26 @@ void setup() {
   pinMode(ENB,OUTPUT);
   pinMode(Echo,INPUT);
   pinMode(Trig,OUTPUT);
+  pinMode(receiverPin,INPUT);
+  irrecv.enableIRIn();
   eyeMount.attach(3);
   eyeMount.write(75);
 
+// Attempted WiFi Code here...
+  /* 
   // WIFI CODE HERE
-  while ( status != WL_CONNECTED) { 
-    Serial.print("Attempting to connect to WPA SSID: ");
-    Serial.println(ssid);
-    // Connect to WPA/WPA2 network:    
-    status = WiFi.begin(ssid, pass);
+  ESP8266wifi wifi(Serial, Serial, 13);
+  wifi.begin();
 
-    // wait 10 seconds for connection:
-    delay(10000);
-  } 
-  Serial.println("Connected!");
-  
+  bool isConnected = wifi.connectToAP(ssid, pass);
+
+  if (isConnected) {
+    Serial.println("Connected!");
+    char* message = getRandomJSON(&wifi);
+  } else {
+    Serial.println("No luck with connecting!");
+  }
+  */
 }
 
 /* There are 3 Modes as of now. Mode X is automatic driving and obstacle detection.
@@ -437,11 +595,14 @@ void setup() {
  * Alternatively, you can comment out the Mode Switcher code (the if(state==_) blocks)
  * and call in one of the following methods to control the robot in a single mode.
  */
+// End of WiFi snippit...
 
  /* put your main code here, to run repeatedly */
 void loop() {
-  return;
-  if(state == 2) {
+  if(state == 3) {
+    irControl();          // w is ir
+  }
+  else if(state == 2) {
     avoidObstaclesAUTO(); // x is auto
   }
   else if(state == 1) {
@@ -451,15 +612,10 @@ void loop() {
     avoidObstaclesBT();   // z is bt
   }
 
+// Individual control modes: uncomment whichever one you want to use
   //btControl();
   //avoidObstaclesAUTO();
   //avoidObstaclesBT();
   //followLine();
-
-  /*
-  if(getstr == 'q') {
-    digitalWrite(TRIG, LOW);
-    eyeMount.write(75);
-  }
-  */
+  //irControl();
 }
