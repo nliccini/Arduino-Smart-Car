@@ -163,39 +163,37 @@ void irControl()
     //Serial.println(RED);
     irrecv.resume();
     delay(150);
-    if(RED == up) {
-      forward();
-      delay(500);
-    }
-    else if(RED == right) {
-      turnRight();
-      delay(350);
-    }
-    else if(RED == down) {
-      back();
-      delay(500);
-    }
-    else if(RED == left) {
-      turnLeft();
-      delay(350);
-    }
-    else if(RED == OK) {
-      stopMovement();
-    } 
-    else if(RED == modeW) {
-      state = 3;
-    }
-    else if(RED == modeX) {
-      state = 2;
-    }
-    else if(RED == modeY) {
-      state = 1;
-    }
-    else if(RED == modeZ) {
-      state = 0;
-    }
-    else {
-      //
+    switch(RED) {
+      case up:
+        forward();
+        delay(500);
+        break;
+      case right:
+        turnRight();
+        delay(250);
+        break;
+      case down:
+        back();
+        delay(500);
+        break;
+      case left:
+        turnLeft();
+        delay(250);
+        break;
+      case OK:
+        stopMovement();
+      case modeW:
+        state = 3;
+        break;
+      case modeX:
+        state = 2;
+        break;
+      case modeY:
+        state = 1;
+        break;
+      case modeZ:
+        state = 0;
+        break;
     }
   }
 }
@@ -210,18 +208,19 @@ void irStateControl()
     //Serial.println(RED);
     irrecv.resume();
     delay(150);
-    if(RED == modeW) {      // Press 1 on remote
-      state = 3;
-      stopMovement();
-    }
-    else if(RED == modeX) { // Press 2 on remote
-      state = 2;
-    }
-    else if(RED == modeY) { // Press 3 on remote
-      state = 1;
-    }
-    else if(RED == modeZ) { // Press 4 on remote
-      state = 0;
+    switch(RED) {
+      case modeW:
+        state = 3;
+        break;
+      case modeX:
+        state = 2;
+        break;
+      case modeY:
+        state = 1;
+        break;
+      case modeZ:
+        state = 0;
+        break;
     }
   }
 }
