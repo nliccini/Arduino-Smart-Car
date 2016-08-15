@@ -12,8 +12,11 @@ char pass[] = "pass";  // your network password
 */ 
 // End of WiFi code snippet...
 
-/* This is the Arduino Smart Car!
- * 
+/* This is the Arduino Smart Car! This is a robot car that has 
+ * various functionalities including control using a Bluetooth connection from
+ * your computer through the attached program "app.js", control with any 
+ * Infrared remote control, autonomous driving with obstacle avoidance, and 
+ * line tracking. There are many possiblities to add to the robot!
  */
 
 /* include outside libraries */
@@ -590,7 +593,7 @@ void setup() {
   */
 }
 
-/* There are 3 Modes as of now. Mode X is automatic driving and obstacle detection.
+/* Mode W is IR Remote Control. Mode X is automatic driving and obstacle detection.
  * Mode Y is line following. Mode Z is Bluetooth control and obstacle detection. 
  * Alternatively, you can comment out the Mode Switcher code (the if(state==_) blocks)
  * and call in one of the following methods to control the robot in a single mode.
